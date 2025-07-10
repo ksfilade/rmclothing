@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Quattrocento_Sans } from 'next/font/google';
+import { saveEmailToFirestore } from '../services/emailService';
 
 const quattrocentoSans = Quattrocento_Sans({
   subsets: ['latin'],
@@ -10,14 +11,45 @@ const quattrocentoSans = Quattrocento_Sans({
 
 export default function Home() {
   const [email, setEmail] = useState('');
+  const [honeypot, setHoneypot] = useState(''); // Honeypot field
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const formLoadTime = useRef(Date.now()); // Track when form was loaded
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (email) {
-      console.log('Email submitted:', email);
-      setIsSubmitted(true);
-      setEmail('');
+      // Time-based challenge - prevent submissions too quickly (likely bots)
+      const timeSinceLoad = Date.now() - formLoadTime.current;
+      if (timeSinceLoad < 3000) { // Less than 3 seconds
+        setError('Please wait a moment before submitting.');
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+      
+      try {
+        // Get user agent for additional metadata
+        const userAgent = navigator.userAgent;
+        
+        const result = await saveEmailToFirestore(email, honeypot, userAgent);
+        
+        if (result.success) {
+          console.log('Email submitted:', email);
+          setIsSubmitted(true);
+          setEmail('');
+          setHoneypot(''); // Reset honeypot
+        } else {
+          setError(result.error || 'Failed to save email. Please try again.');
+        }
+      } catch (err) {
+        setError('An error occurred. Please try again.');
+        console.error('Error submitting email:', err);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -51,7 +83,30 @@ export default function Home() {
           </p>
           
           {!isSubmitted ? (
-            <form onSubmit={handleSubmit} className="space-y-4 w-[350px] flex justify-center items-center">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault(); // Prevent page refresh
+                handleSubmit(e);
+              }}
+              className="space-y-4 w-[350px] flex justify-center items-center flex-col"
+            >
+              {/* Honeypot field - hidden from real users */}
+              <input
+                type="text"
+                name="website"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  left: '-9999px',
+                  opacity: 0,
+                  pointerEvents: 'none'
+                }}
+                tabIndex="-1"
+                autoComplete="off"
+                aria-hidden="true"
+              />
+              
               <div className="relative">
                 <input
                   type="email"
@@ -60,20 +115,36 @@ export default function Home() {
                   placeholder="Email address"
                   className={` sm:w-[350px] w-[250px] px-4 py-3 pr-12 rounded-lg border border-black-300 focus:outline-none focus:ring-1 focus:ring-black-300 focus:border-transparent text-black placeholder-black-400 ${quattrocentoSans.className}`}
                   required
+                  disabled={isLoading}
+                  autoComplete="email"
+                  name="email"
                 />
-                <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                  <svg
-                    className="w-5 h-5 text-gray-400 text-black"
-                    fill="none"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m0 0l-4-4m4 4l-4 4" />
-                  </svg>
-                </span>
+                <button
+                  type="submit"
+                  disabled={isLoading || !email.trim()}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m0 0l-4-4m4 4l-4 4" />
+                    </svg>
+                  )}
+                </button>
               </div>
-             
+              
+              {error && (
+                <div className="text-red-600 text-sm mt-2 max-w-[350px] text-center">
+                  {error}
+                </div>
+              )}
             </form>
           ) : (
             <div className="bg-white/50 backdrop-blur-sm rounded-lg p-6 border border-white/20">
