@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 // Rate limiting - track submission attempts
