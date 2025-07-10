@@ -25,6 +25,7 @@ export default function Home() {
     <div className={`min-h-screen ${quattrocentoSans.className}`} style={{ backgroundColor: '#F4C2C2' }}>
       {/* Header */}
       <header className="p-6">
+        <title>RM Clothing</title>
         <div className="flex items-center justify-center sm:justify-start sm:ml-10">
           <img src="/logo.avif" alt="Logo" className="w-[100px] h-[60px]" />
         </div>
@@ -56,7 +57,7 @@ export default function Home() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address"
+                  placeholder="Email address"
                   className={` sm:w-[350px] w-[250px] px-4 py-3 pr-12 rounded-lg border border-black-300 focus:outline-none focus:ring-1 focus:ring-black-300 focus:border-transparent text-black placeholder-black-400 ${quattrocentoSans.className}`}
                   required
                 />
